@@ -25,29 +25,65 @@ RED → GREEN → REFACTOR
 
 ---
 
-## Architecture Overview
+## Architecture Overview (7-Plane Architecture)
 
 ```
 ┌─────────────────────────────────────────┐
-│         Management Plane [V2]           │
-│  Tenant / User / Model / Policy / Skill  │
+│    Application Plane (openbotstack-apps) │
+│  Industry Apps (Nursing / Finance / etc) │
 └───────────────▲─────────────────────────┘
                 │
 ┌───────────────┴─────────────────────────┐
-│          Control Plane [V1]             │
-│  Context Assembly / Policy Engine        │
-│  State Machine / Reflection Loop         │
+│              Client Plane               │
+│  Web UI / Mobile / SDK / API Clients    │
 └───────────────▲─────────────────────────┘
                 │
 ┌───────────────┴─────────────────────────┐
-│          Execution Plane [V1]           │
-│  Tool Runtime / Skill Executor / Audit   │
+│              Access Plane               │
+│  API Gateway / Auth / Tenant / RateLimit│
 └───────────────▲─────────────────────────┘
                 │
 ┌───────────────┴─────────────────────────┐
-│           User Plane [V1/V2]            │
-│  Web / DingTalk / Feishu / Slack / API   │
+│             Control Plane               │
+│  Assistant / Memory / Policy / Registry │
+└───────────────▲─────────────────────────┘
+                │
+┌───────────────┴─────────────────────────┐
+│            Execution Plane              │
+│  Skill Executor / Wasm Sandbox / Tool   │
+└───────────────▲─────────────────────────┘
+                │
+┌───────────────┴─────────────────────────┐
+│           AI Service Plane              │
+│  LLM Router / Providers / Embeddings    │
+└───────────────▲─────────────────────────┘
+                │
+┌───────────────┴─────────────────────────┐
+│          Infrastructure Plane           │
+│  Redis / Milvus / Observability / LLMs  │
 └─────────────────────────────────────────┘
+```
+
+### Execution Flow
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Access Plane (Auth/Tenant)
+    participant CP as Control Plane (Agent)
+    participant EP as Execution Plane (Skill/Tool)
+    participant AS as AI Service Plane (LLM)
+
+    C->>A: Request (Auth Token)
+    A->>A: Validate JWT / Rate Limit
+    A->>CP: Execute Agent (Context)
+    CP->>CP: Assemble Context (Profile + Memory)
+    CP->>EP: Invoke Skill / Workflow
+    EP->>AS: LLM.Generate / Tool Use
+    AS-->>EP: Response
+    EP-->>CP: Result
+    CP-->>A: Formatted Response
+    A-->>C: Streamed Result (SSE)
 ```
 
 ---

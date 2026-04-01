@@ -9,6 +9,7 @@
 | [ADR-004-WASM-RUNTIME.md](design/ADR-004-WASM-RUNTIME.md) | ✅ Complete |
 | [ADR-005-CHAT-UI.md](design/ADR-005-CHAT-UI.md) | ✅ Complete |
 | [ADR-006-WEBUI-LOCATION.md](design/ADR-006-WEBUI-LOCATION.md) | ✅ Complete |
+| [ADR-011-MODEL-LAYER.md](design/ADR-011-MODEL-LAYER.md) | ✅ Complete |
 
 ## Documentation Gaps (Priority Order)
 
