@@ -136,6 +136,7 @@ See [v1-audit.md](../v1-audit.md) for details.
 | 5.3 | Skill marketplace / external skill loading | Via Wasm |
 | 5.4 | Multi-channel support (Slack, Teams, API) | Beyond web UI |
 | 5.5 | JSON Schema validation for skill parameters | Replace PH3 |
+| 5.6 | Dual bounded loop kernel (`loop/`) | ADR-012: outer task loop + inner reasoning turn loop |
 
 ---
 

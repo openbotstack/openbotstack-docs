@@ -369,6 +369,104 @@ openbotstack-core/
 | D6 | Go 1.25 | User environment constraint | V1 |
 | D7 | API skill as escape hatch | Legacy/GPU workloads | V2 |
 | D8 | Per-skill rate limits | Fine-grained control | V2 |
+| D9 | Dual bounded loop kernel | Iterative reasoning + workflow orchestration, bounded | V2 |
+
+---
+
+### D9: Dual Bounded Loop Kernel
+
+Upgrades the single-pass execution pipeline to a dual-loop agent kernel with explicit state machines and bounded execution.
+
+**Module:** `openbotstack-runtime/loop/`
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                    OUTER LOOP (Task/Workflow)                  │
+│                                                               │
+│  INIT → TASK_SELECT → TASK_EXECUTE → CHECKPOINT →             │
+│                        NEXT_TASK → DONE                       │
+│                                                               │
+│  Bounds: max_workflow_steps=5, max_session_runtime=30s        │
+│                                                               │
+│  ┌───────────────────────────────────────────────────────────┐│
+│  │              INNER LOOP (Reasoning Turn)                  ││
+│  │                                                           ││
+│  │  TURN_INIT → PLAN → ACT → OBSERVE →                      ││
+│  │              CHECK_STOP → NEXT_TURN → DONE                ││
+│  │                                                           ││
+│  │  Bounds: max_turns=8, max_tool_calls=20,                  ││
+│  │          max_turn_runtime=15s                             ││
+│  └───────────────────────────────────────────────────────────┘│
+└───────────────────────────────────────────────────────────────┘
+```
+
+**Outer Loop States:**
+| State | Responsibility |
+|-------|---------------|
+| INIT | Validate tasks, start session clock |
+| TASK_SELECT | Pick next task from ordered list |
+| TASK_EXECUTE | Delegate to inner loop |
+| CHECKPOINT | Save memory + enforce policy gates |
+| NEXT_TASK | Evaluate stop conditions, advance |
+| DONE | Return aggregated workflow result |
+
+**Inner Loop States:**
+| State | Responsibility |
+|-------|---------------|
+| TURN_INIT | Init turn counter, start clock |
+| PLAN | LLM planning via `planner.ExecutionPlanner` |
+| ACT | Execute plan steps via `toolrunner.ToolRunner` |
+| OBSERVE | Collect results, build observation context |
+| CHECK_STOP | Evaluate turn/tool/runtime limits |
+| NEXT_TURN | Compact context, loop to PLAN |
+| DONE | Return aggregated task result |
+
+**Interfaces:**
+```go
+// loop/inner_loop.go
+type InnerLoop interface {
+    Run(ctx context.Context, task TaskInput, ec *execution.ExecutionContext) (*TaskResult, error)
+}
+
+// loop/outer_loop.go
+type OuterLoop interface {
+    Run(ctx context.Context, tasks []TaskInput, ec *execution.ExecutionContext) (*WorkflowResult, error)
+}
+
+// loop/checkpoint.go
+type Checkpoint interface {
+    Save(ctx context.Context, taskIndex int, taskResult *TaskResult, metrics *LoopMetrics) error
+}
+
+type PolicyCheckpoint interface {
+    Check(ctx context.Context, taskIndex int, metrics *LoopMetrics) error
+}
+
+// loop/context_compactor.go
+type ContextCompactor interface {
+    Compact(ctx context.Context, turnResults []TurnResult) ([]TurnResult, error)
+}
+```
+
+**Files:**
+| File | Purpose |
+|------|---------|
+| `loop_state.go` | State enums, configs, result types |
+| `stop_conditions.go` | Stop evaluators for both loops |
+| `context_compactor.go` | Context window truncation |
+| `checkpoint.go` | Memory + policy checkpoint interfaces |
+| `inner_loop.go` | Reasoning turn loop |
+| `outer_loop.go` | Task/workflow orchestration loop |
+
+**Reuse:**
+| Component | Source | Used By |
+|-----------|--------|---------|
+| `ExecutionPlanner` | `openbotstack-core/planner` | Inner Loop (PLAN) |
+| `ToolRunner` | `openbotstack-runtime/toolrunner` | Inner Loop (ACT) |
+| `ExecutionContext` | `openbotstack-core/execution` | Both loops |
+| `ExecutionLogger` | `openbotstack-core/execution` | Both loops |
+
+> **Reference:** [ADR-012-DUAL-LOOP-KERNEL.md](./ADR-012-DUAL-LOOP-KERNEL.md)
 
 ---
 
